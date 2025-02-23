@@ -29,7 +29,7 @@ struct ItemView: View {
                     .currency(
                         code: Locale.current.currency?.identifier
                             ?? "USD")
-            ).font(.title3).foregroundColor(
+            ).font(.title3.bold()).foregroundColor(
                 item.amount > 99
                     ? .red : item.amount > 49 ? .yellow : .green)
         }
