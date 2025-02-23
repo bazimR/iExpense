@@ -13,6 +13,29 @@ struct ExpenseItem: Identifiable, Codable {
     let type: String
     let amount: Double
 }
+
+struct ItemView: View {
+    let item: ExpenseItem
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(item.name).font(.headline)
+                Text(item.type)
+            }
+            Spacer()
+            Text(
+                item.amount,
+                format:
+                    .currency(
+                        code: Locale.current.currency?.identifier
+                            ?? "USD")
+            ).font(.title3).foregroundColor(
+                item.amount > 99
+                    ? .red : item.amount > 49 ? .yellow : .green)
+        }
+    }
+}
+
 @Observable
 class Expense {
     var items: [ExpenseItem] = [ExpenseItem]() {
@@ -43,22 +66,34 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
-                ForEach(expense.items) { item in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(item.name).font(.headline)
-                            Text(item.type)
-                        }
-                        Spacer()
-                        Text(
-                            item.amount,
-                            format:
-                                .currency(
-                                    code: Locale.current.currency?.identifier
-                                        ?? "USD")
-                        ).font(.title3)
+                Section("Personal Expenses") {
+                    if (expense.items.filter { $0.type == "Personal" }).isEmpty
+                    {
+                        Text("No Personal expenses logged.")
+                    } else {
+                        ForEach(
+                            expense.items.filter { item in
+                                return item.type == "Personal"
+                            }
+                        ) { item in
+                            ItemView(item: item)
+                        }.onDelete(perform: removeItems)
                     }
-                }.onDelete(perform: removeItems)
+                }
+                Section("Business Expenses") {
+                    if (expense.items.filter { $0.type == "Business" }).isEmpty
+                    {
+                        Text("No Business expenses logged.")
+                    } else {
+                        ForEach(
+                            expense.items.filter { item in
+                                return item.type == "Business"
+                            }
+                        ) { item in
+                            ItemView(item: item)
+                        }.onDelete(perform: removeItems)
+                    }
+                }
             }.navigationTitle("iExpense").toolbar {
                 Button("Add Expense", systemImage: "plus") {
                     showAddExpense = true
