@@ -8,9 +8,8 @@
 import SwiftUI
 
 struct AddExpenses: View {
-    @Environment(\.dismiss) var dismiss
     var expense: Expense
-
+    @Binding var path: NavigationPath
     @State private var name: String = ""
     @State private var type: String = "Personal"
     @State private var amount: Double = 0.0
@@ -20,35 +19,39 @@ struct AddExpenses: View {
 
     private let typesOfExpense = ["Business", "Personal"]
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    TextField("Expense name", text: $name)
-                    Picker("Expense type", selection: $type) {
-                        ForEach(typesOfExpense, id: \.self) {
-                            Text($0)
-                        }
-                    }
-                    TextField(
-                        "Enter amount",
-                        value: $amount,
-                        format: .currency(
-                            code: Locale.current.currency?.identifier ?? "USD")
-                    )
-                }
-                if errorShow {
-                    Section("Warning") {
-                        Text(errorTitle)
-                            .font(.headline)
-                            .foregroundColor(.red)
+        Form {
+            Section {
+                TextField("Expense name", text: $name)
+                Picker("Expense type", selection: $type) {
+                    ForEach(typesOfExpense, id: \.self) {
+                        Text($0)
                     }
                 }
-            }.navigationTitle("Add expense").toolbar {
-                Button("Save") {
-                    addExpense()
+                TextField(
+                    "Enter amount",
+                    value: $amount,
+                    format: .currency(
+                        code: Locale.current.currency?.identifier ?? "USD")
+                )
+            }
+            if errorShow {
+                Section("Warning") {
+                    Text(errorTitle)
+                        .font(.headline)
+                        .foregroundColor(.red)
                 }
             }
-        }
+        }.navigationTitle("Add expense").toolbar {
+            ToolbarItemGroup {
+                Button("Cancel") {
+                    path.removeLast()
+                }
+                Button("Save") {
+                    addExpense()
+
+                }
+            }
+        }.navigationBarBackButtonHidden()
     }
     func addExpense() {
         guard !name.isEmpty else {
@@ -65,8 +68,12 @@ struct AddExpenses: View {
             amount: amount
         )
 
-        expense.items.append(newExpense)
-        dismiss()
+        if type == "Personal" {
+            expense.itemsPersonal.append(newExpense)
+        } else {
+            expense.itemsBusiness.append(newExpense)
+        }
+        path.removeLast()
     }
     func error(title: String) {
         errorTitle = title
@@ -75,5 +82,6 @@ struct AddExpenses: View {
 }
 
 #Preview {
-    AddExpenses(expense: Expense())
+    @Previewable @State var previewPathStore = PathStore()
+    AddExpenses(expense: Expense(), path: $previewPathStore.path)
 }

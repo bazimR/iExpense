@@ -36,75 +36,140 @@ struct ItemView: View {
     }
 }
 
+enum Routes: Hashable, Codable {
+    case add
+}
+
 @Observable
-class Expense {
-    var items: [ExpenseItem] = [ExpenseItem]() {
+class PathStore {
+    var path: NavigationPath {
         didSet {
-            if let encoded = try? JSONEncoder().encode(items) {
-                UserDefaults.standard.set(encoded, forKey: "Items")
-            }
+            save()
         }
     }
+
+    let savedPath = URL.documentsDirectory.appending(path: "SavedPath")
 
     init() {
-        if let saveItems = UserDefaults.standard.data(forKey: "Items") {
+        if let data = try? Data(contentsOf: savedPath) {
+            if let decoded = try? JSONDecoder().decode(
+                NavigationPath.CodableRepresentation.self,
+                from: data
+            ) {
+                path = NavigationPath(decoded)
+                return
+            }
+        }
+        path = NavigationPath()
+    }
+
+    func save() {
+        guard let representation = path.codable else { return }
+        do {
+            let data = try JSONEncoder().encode(representation)
+            try data.write(to: savedPath)
+        } catch {
+            print("Error saving nav data.")
+        }
+    }
+
+}
+
+@Observable
+class Expense {
+    var itemsBusiness: [ExpenseItem] = [ExpenseItem]() {
+        didSet {
+            if let encoded = try? JSONEncoder().encode(itemsBusiness) {
+                UserDefaults.standard.set(encoded, forKey: "ItemsBusiness")
+            }
+        }
+    }
+    var itemsPersonal: [ExpenseItem] = [ExpenseItem]() {
+        didSet {
+            if let encoded = try? JSONEncoder().encode(itemsPersonal) {
+                UserDefaults.standard.set(encoded, forKey: "ItemsPersonal")
+            }
+        }
+    }
+    init() {
+        if let saveItemsBusiness = UserDefaults.standard.data(
+            forKey: "ItemsBusiness")
+        {
             if let decodedItems = try? JSONDecoder().decode(
                 [ExpenseItem].self,
-                from: saveItems
+                from: saveItemsBusiness
             ) {
-                items = decodedItems
+                itemsBusiness = decodedItems
             }
         } else {
-            items = []
+            itemsBusiness = []
         }
 
+        if let saveItemsPersonal = UserDefaults.standard.data(
+            forKey: "ItemsPersonal")
+        {
+            if let decodedItems = try? JSONDecoder().decode(
+                [ExpenseItem].self,
+                from: saveItemsPersonal
+            ) {
+                itemsPersonal = decodedItems
+            }
+        } else {
+            itemsPersonal = []
+        }
     }
+
 }
 struct ContentView: View {
     @State private var expense = Expense()
-    @State private var showAddExpense: Bool = false
+    @State private var pathStore = PathStore()
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $pathStore.path) {
             List {
                 Section("Personal Expenses") {
-                    if (expense.items.filter { $0.type == "Personal" }).isEmpty
-                    {
+                    if expense.itemsPersonal.isEmpty {
                         Text("No Personal expenses logged.")
                     } else {
                         ForEach(
-                            expense.items.filter { item in
-                                return item.type == "Personal"
-                            }
+                            expense.itemsPersonal
                         ) { item in
                             ItemView(item: item)
-                        }.onDelete(perform: removeItems)
+                        }.onDelete(perform: removeItemsPersonal)
                     }
                 }
                 Section("Business Expenses") {
-                    if (expense.items.filter { $0.type == "Business" }).isEmpty
-                    {
+                    if expense.itemsBusiness.isEmpty {
                         Text("No Business expenses logged.")
                     } else {
                         ForEach(
-                            expense.items.filter { item in
-                                return item.type == "Business"
-                            }
+                            expense.itemsBusiness
                         ) { item in
                             ItemView(item: item)
-                        }.onDelete(perform: removeItems)
+                        }.onDelete(perform: removeItemsBusiness)
                     }
                 }
             }.navigationTitle("iExpense").toolbar {
                 Button("Add Expense", systemImage: "plus") {
-                    showAddExpense = true
+                    print(
+                        "Before navigation, path count: \(pathStore.path.count)"
+                    )
+                    pathStore.path.append(Routes.add)
+                    print(
+                        "After navigation, path count: \(pathStore.path.count)")
                 }
-            }.sheet(isPresented: $showAddExpense) {
-                AddExpenses(expense: expense)
+            }.navigationDestination(for: Routes.self) { route in
+                switch route {
+                case .add:
+                    AddExpenses(expense: expense, path: $pathStore.path)
+                }
             }
         }
     }
-    func removeItems(at offset: IndexSet) {
-        expense.items.remove(atOffsets: offset)
+    func removeItemsBusiness(at offset: IndexSet) {
+        expense.itemsBusiness.remove(atOffsets: offset)
+    }
+    func removeItemsPersonal(at offset: IndexSet) {
+        expense.itemsPersonal.remove(atOffsets: offset)
     }
 }
 
