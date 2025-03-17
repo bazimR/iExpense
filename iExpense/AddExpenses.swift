@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AddExpenses: View {
-    var expense: Expense
+    @Environment(\.modelContext) private var modelContext
     @Binding var path: NavigationPath
     @State private var name: String = ""
     @State private var type: String = "Personal"
@@ -42,13 +42,14 @@ struct AddExpenses: View {
                 }
             }
         }.navigationTitle("Add expense").toolbar {
-            ToolbarItemGroup {
-                Button("Cancel") {
-                    path.removeLast()
-                }
+            ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     addExpense()
-
+                }
+            }
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") {
+                    path.removeLast()
                 }
             }
         }.navigationBarBackButtonHidden()
@@ -62,17 +63,13 @@ struct AddExpenses: View {
             error(title: "Please provide a valid amount greater than zero")
             return
         }
-        let newExpense = ExpenseItem(
+        let newExpense = Expense(
             name: name,
             type: type,
             amount: amount
         )
 
-        if type == "Personal" {
-            expense.itemsPersonal.append(newExpense)
-        } else {
-            expense.itemsBusiness.append(newExpense)
-        }
+        modelContext.insert(newExpense)
         path.removeLast()
     }
     func error(title: String) {
@@ -83,5 +80,7 @@ struct AddExpenses: View {
 
 #Preview {
     @Previewable @State var previewPathStore = PathStore()
-    AddExpenses(expense: Expense(), path: $previewPathStore.path)
+    NavigationStack {
+        AddExpenses(path: $previewPathStore.path)
+    }
 }
